@@ -12,6 +12,9 @@ include_directories(../Common)
 set(SRCS
     IrregularSpline1D.cxx
     IrregularSpline2D3D.cxx
+    IrregularSpline2DCalibrator.cxx
+    RegularSpline1D.cxx
+    SemiregularSpline2D3D.cxx
     TPCDistortionIRS.cxx
     TPCFastTransform.cxx
 )
@@ -51,6 +54,7 @@ if (NOT ROOT_VERSION_MAJOR EQUAL 5)
         ../Common/FlatObject.h
         IrregularSpline1D.h
         IrregularSpline2D3D.h
+	IrregularSpline2DCalibrator.h
         TPCFastTransform.h
         TPCDistortionIRS.h
     )
