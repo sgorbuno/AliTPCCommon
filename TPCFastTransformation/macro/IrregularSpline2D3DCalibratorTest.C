@@ -27,7 +27,7 @@ using namespace ali_tpc_common::tpc_fast_transformation ;
 
 const int PolynomDegree = 20;
 
-void F( float u, float v , float &x, float &y, float &z )
+void F( float u, float v , float &fx, float &fy, float &fz )
 {  
   static double cu[PolynomDegree+1], cv[PolynomDegree+1];
   static int doInit=1;
@@ -45,15 +45,15 @@ void F( float u, float v , float &x, float &y, float &z )
   v-=0.5;
   double uu = 1.;  
   double vv = 1.;  
-  x = 0;
+  fx = 0;
   for( int i=0; i<=PolynomDegree; i++ ){
-    x+=cu[i]*uu;
-    x+=cv[i]*vv;
+    fx+=cu[i]*uu;
+    fx+=cv[i]*vv;
     uu*=u;
     vv*=v;
   }
-  y = v;
-  z = ((u-.5)*(u-.5));
+  fy = v;
+  fz = ((u-.5)*(u-.5));
 }
 
 
@@ -83,11 +83,6 @@ int IrregularSpline2D3DCalibratorTest()
  
   //Drawing Results------------------------------------------------------
 
-  TCanvas *canv = new TCanvas("cQA","2D splines  QA",1000,1000);
-  
-  canv->Draw();
-  //canv->Divide(3,3);
-  canv->Update();
 
   // knots 
 
@@ -99,18 +94,31 @@ int IrregularSpline2D3DCalibratorTest()
   gknots->SetMarkerStyle(8);
   gknots->SetMarkerColor(kRed);
 
+ TGraph2D *gknotsDiff = new TGraph2D();
+  gknotsDiff->SetName("gknots");
+  gknotsDiff->SetTitle("gknots");
+  gknotsDiff->SetLineColor(kRed);
+  gknotsDiff->SetMarkerSize(1.);
+  gknotsDiff->SetMarkerStyle(8);
+  gknotsDiff->SetMarkerColor(kRed);
+
+
   const IrregularSpline1D& gridU = spline.getGridU();
   const IrregularSpline1D& gridV = spline.getGridV();
 
   int nu = gridU.getNumberOfKnots();
   int gknotsN=0;
+  int gknotsDiffN=0;
   for( int i=0; i<gridU.getNumberOfKnots(); i++ ){
     double u = gridU.getKnot( i ).u;
     for( int j=0; j<gridV.getNumberOfKnots(); j++ ){
       double v = gridV.getKnot( j ).u;
       float fx, fy, fz;
       F(u,v,fx,fy,fz);
+      float fx1, fy1, fz1;
+      spline.getSplineVec( spline_data, u,v, fx1, fy1, fz1);
       gknots->SetPoint(gknotsN++,u,v,fx); 
+      gknotsDiff->SetPoint(gknotsDiffN++,u,v,fx1-fx); 
     }
   }
   
@@ -127,12 +135,18 @@ int IrregularSpline2D3DCalibratorTest()
   TGraph2D *gfs = new TGraph2D();
   gfs->SetName("gfs");
   gfs->SetTitle("Spline");
-  gfs->SetLineColor(kRed);
+  gfs->SetLineColor(kGreen);
   int gfsN=0;
 
-  TH1F *qaX = new TH1F("qaX","qaX [um]",1000,-0.1,0.1); 
-  TH1F *qaY = new TH1F("qaY","qaY [um]",1000,-0.1,0.1);
-  TH1F *qaZ = new TH1F("qaZ","qaZ [um]",1000,-0.1,0.1);
+  TGraph2D *gfdiff = new TGraph2D();
+  gfdiff->SetName("gfs");
+  gfdiff->SetTitle("diff between F and Spline");
+  gfdiff->SetLineColor(kBlue);
+  int gfdiffN=0;
+
+  TH1F *qaX = new TH1F("qaX","diff Fx - spline",1000,-0.1,0.1); 
+  TH1F *qaY = new TH1F("qaY","diff Fy - spline",1000,-0.1,0.1);
+  TH1F *qaZ = new TH1F("qaZ","diff Fz - spline",1000,-0.1,0.1);
 
   int iter=0;
   float stepu = 1.e-3;
@@ -152,31 +166,38 @@ int IrregularSpline2D3DCalibratorTest()
       }
       gf0->SetPoint(gf0N++,u,v,fx0);
       gfs->SetPoint(gfsN++,u,v,fx1);
+      gfdiff->SetPoint(gfdiffN++,u,v,fx1-fx0);
     }
   }
+
+
+  TCanvas *canv = new TCanvas("cQA","2D splines  QA",1500,1000);
+  
+  //canv->Draw();
+  canv->Divide(2,2);
+  //canv->Update();
+
+  canv->cd(1);
   gStyle->SetPalette(1);
   gf0->Draw("surf");
-  gfs->Draw("surf, same");
   gknots->Draw("P,same");  
+
+  canv->cd(2);
+  gStyle->SetPalette(1);
+  gfs->Draw("surf");
+  gknots->Draw("P,same");  
+
+  canv->cd(3);
+ 
+  gStyle->SetPalette(1);
+  gfdiff->Draw("surf");
+  gknotsDiff->Draw("P,same");  
+
+  canv->cd(4);
+  qaX->Draw();
+ 
   canv->Update();  
 
-  /*
-    Specific drawing options can be used to paint a TGraph2D:
-
-    "TRI"  : The Delaunay triangles are drawn using filled area.
-    An hidden surface drawing technique is used. The surface is
-    painted with the current fill area color. The edges of each
-    triangles are painted with the current line color.
-    "TRIW" : The Delaunay triangles are drawn as wire frame
-    "TRI1" : The Delaunay triangles are painted with color levels. The edges
-    of each triangles are painted with the current line color.
-    "TRI2" : the Delaunay triangles are painted with color levels.
-    "P"    : Draw a marker at each vertex
-    "P0"   : Draw a circle at each vertex. Each circle background is white.
-    "PCOL" : Draw a marker at each vertex. The color of each marker is
-    defined according to its Z position.
-    "CONT" : Draw contours
-    "LINE" : Draw a 3D polyline
-  */
+ 
   return 0;
 }
